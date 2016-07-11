@@ -53,7 +53,7 @@ def runner(hour):
             except Exception as exp:
                 logger.debug("\033[91m{r} - {e}\033[0m".format(r = "Error in reporter", e = exp))
             reported = True
-        else:
+        eif now.hour != settings.REPORT_HOUR:
             reported = False
         time.sleep(5)
         
