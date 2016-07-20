@@ -23,9 +23,9 @@ import eodnharvester.settings as settings
 
 class Product(object):
     def __init__(self, scene, productCode, filesize, metadata):
+        metadata["filesize"] = filesize
         self.productCode = productCode
         self.scene = scene
-        self.filesize = filesize
         self.metadata = metadata
 
     def initialize(self):

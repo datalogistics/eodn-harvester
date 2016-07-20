@@ -79,6 +79,7 @@ DOWNLOAD_CHUNKSIZE = 8192 # int
 #                                #
 ##################################
 
+#UNIS_HOST = "localhost"
 UNIS_HOST = "unis.crest.iu.edu"          # hostname or ip
 UNIS_PORT = 8890                         # port as int
 LoRS = {
@@ -98,7 +99,7 @@ LoRS = {
 #                                #
 ##################################
 
-FORCE_EMAIL            = True
+FORCE_EMAIL            = False
 REPORT_HOUR            = 0 # Hour of day (0-23)
 REPORT_EMAIL           = "dlt-news@crest.iu.edu"
 VALIDATION_GRANULARITY = 1024

@@ -83,6 +83,7 @@ def downloadProduct(product):
     log.write(product.filename, "scene", product.scene)
     log.write(product.filename, "code", product.productCode)
     log.write(product.filename, "metadata", product.metadata)
+    log.write(product.filename, "filesize", product.metadata["filesize"])
     log.write(product.filename, "usgs_live", product.metadata["acquisitionDate"])
     logger.info("Downloading {name} from USGS".format(name = product.filename))
     
@@ -118,11 +119,11 @@ def downloadProduct(product):
                 filesize += len(chunk)
                 
                 if settings.VERBOSE and settings.THREADS <= 1:
-                    percent = float(filesize) / float(product.filesize)
-                    sys.stdout.write("\r[{bar:<30}] {percent:0.2f}%  <{so_far:>10} of {total:<10}>".format(bar     = "#" * int(30 * percent), 
+                    percent = float(filesize) / float(product.metadata["filesize"])
+                    sys.stdout.write("\r[{bar:<30}] {percent:0.2f}%  <{so_far:>10} of {total:<10}>".format(bar     = "#" * int(30 * percent),
                                                                                                            percent = float(percent * 100),
                                                                                                            so_far  = filesize,
-                                                                                                           total   = product.filesize))
+                                                                                                           total   = product.metadata["filesize"]))
                     sys.stdout.flush()
     except Exception as exp:
         error = "Unknown error while opening and storing file - {exp}".format(exp = exp)
@@ -258,7 +259,7 @@ def createProduct(product, attempt = 0):
         vals = { "ts": now,
                  "scene": log.read(product.filename, "scene"),
                  "code": log.read(product.filename, "code"),
-                 "filesize": log.read(product.filename, "filesize"),
+                 "filesize": log.read(product.filename, "filesize", product.metadata["filesize"]),
                  "speed": log.read(product.filename, "download_speed"),
                  "usgs_live": log.read(product.filename, "usgs_live"),
                  "eodn_live": log.read(product.filename, "eodn_live") }
@@ -279,7 +280,7 @@ def createProduct(product, attempt = 0):
 
 def productFromJob(job):
     tmpProduct = Product(job["scene"], job["code"], job["filesize"], job["metadata"])
-    return createProduct(tmpProduct, attempt = job["attempt"])
+    return createProduct(tmpProduct, attempt = int(job["attempt"]))
 
 def harvest(scene):
     log = history.Record()
@@ -358,7 +359,8 @@ def run():
                         for scene in search:
                             report = harvest(scene)
                             log.merge(report)
-                    except Exception:
+                    except Exception as exp:
+                        logger.error("Harvest error - {exp}".format(exp = exp))
                         conn_err = True
                             
                 log.merge(search.log)

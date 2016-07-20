@@ -86,11 +86,11 @@ class Record(object):
             self._record[product_id]["errors"] = []
             self._record[product_id]["errors"].append(report)
 
-    def read(self, product_id, key):
+    def read(self, product_id, key, default = None):
         try:
             return self._record[product_id][key]
         except Exception as exp:
-            return None
+            return default
 
     def merge(self, log):
         if type(log) is not Record:

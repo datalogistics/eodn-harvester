@@ -53,7 +53,7 @@ class Entity(object):
         self.products = []
         response = ""
         url = "http://{usgs_host}/inventory/json/{request_code}"
-
+        
         sceneRequest = {
             "datasetName": self.metadata["datasetName"],
             "apiKey":      apiKey,
