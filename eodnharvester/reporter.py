@@ -170,11 +170,13 @@ def download_source(product, dest_file):
         "datasetName": settings.DATASET_NAME,
         "apiKey":      apiKey,
         "node":        settings.NODE,
-        "entityIds":   product["scene"],
+        "entityIds":   [product["scene"]],
         "products":    ["STANDARD"]
     }
     try:
+        logger.debug("\033[91m{r} - {e}\033[0m".format(r = "Download Request result", e = json.dumps({ 'jsonRequest': downloadRequest }, indent=2)))
         entity_data = requests.get(url, params = { 'jsonRequest': json.dumps(downloadRequest) }, timeout = settings.TIMEOUT)
+        logger.debug("\033[91m{r} - {e}\033[0m".format(r = "Download Request result", e = entity_data.text))
         entity_data = entity_data.json()
         
         if entity_data["errorCode"]:
