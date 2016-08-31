@@ -370,7 +370,7 @@ def run():
                                               "code":     log.read(product, "code"),
                                               "filesize": log.read(product, "filesize"),
                                               "metadata": log.read(product, "metadata"),
-                                              "attempt":  log.read(product, "attempt") }, todo))
+                                              "attempt":  log.read(product, "attempt", 0) }, todo))
             with open(transac_file, 'w') as f:
                 tmpTransaction = {
                     "ts": window_start if conn_err else window_end.strftime("%Y-%m-%dT%H:%M:%SZ"),
