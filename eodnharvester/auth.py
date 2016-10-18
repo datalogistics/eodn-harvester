@@ -66,7 +66,7 @@ def login(log = None):
             error = "Unknown error while logging into USGS - {exp}".format(exp = exp)
             logger.error(error)
             log.error(history.SYS, error)
-
+            
         retry += 1
         if retry > settings.MAX_RECONNECT:
             remaining_time = datetime.timedelta(**settings.HARVEST_WINDOW)

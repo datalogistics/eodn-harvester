@@ -148,12 +148,26 @@ def downloadProduct(product):
     return output_file, log
     
 
-def lorsUpload(filename, basename, timeouts = 1):
-    result = '0'
+def upload(filename, basename, timeouts = 1):
     output = "http://{unis_host}:{unis_port}/exnodes".format(unis_host = settings.UNIS_HOST,
                                                              unis_port = settings.UNIS_PORT)
+    result = '0'
     logger = history.GetLogger()
     directory = _getUnisDirectory(basename)
+            
+    try:
+        kwargs = {
+            "duration": settings.DURATION,
+            "filename": filename,
+            "chunk_size": settings.CHUNK_SIZE,
+            "depots": None,
+            "copies": settings.COPIES,
+            "timeout": None,
+        }
+        session = Session("http://dev.crest.iu.edu:8888", settings.CEPH_DEPOTS)
+        session.upload(filename, folder=directory, copies=settings.LoRS["copies"])
+    except Exception as exp:
+        logger.error("Unknown error in dlt upload - {exp}".format(exp = exp))
     
     try:
         duration = "--duration={0}h".format(settings.LoRS["duration"])
@@ -247,7 +261,7 @@ def createProduct(product, attempt = 0):
         return None
     
     now = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
-    upload_result = lorsUpload(filename, product.basename, attempt)
+    upload_result = upload(filename, product.basename, attempt)
     if upload_result == 0:
         log.write(product.filename, "uploaded", True)
     else:
