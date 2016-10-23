@@ -22,6 +22,8 @@ import subprocess
 import concurrent.futures
 import json
 
+from libdlt import Session
+
 import eodnharvester.history as history
 import eodnharvester.settings as settings
 import eodnharvester.reporter as reporter
@@ -156,19 +158,9 @@ def upload(filename, basename, timeouts = 1):
     directory = _getUnisDirectory(basename)
     
     try:
-        sess_kwargs = { 
-            "url": "http://dev.crest.iu.edu:8888",
-            "depots": settings.CEPH_DEPOTS, 
-            "bs": settings.LoRS["size"] }
-        kwargs = {
-            "duration": settings.LoRS["duration"],
-            "filepath": filename,
-            "copies": settings.LoRS["copies"],
-            "folder": directory
-        }
         logger.debug("Starting upload to DLT_CEPH...")
-        session = Session(**kwargs)
-        session.upload(**kwargs)
+        session = Session("http://dev.crest.iu.edu:8888", settings.CEPH_DEPOTS, bs=settings.LoRS["size"])
+        session.upload(filepath=filename, folder=directory, copies=settings.LoRS["copies"], duration=settings.LoRS["duration"])
         logger.debug("Upload to DLT_CEPH complete")
     except Exception as exp:
         logger.error("Unknown error in dlt upload - {exp}".format(exp = exp))
