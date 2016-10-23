@@ -81,6 +81,15 @@ DOWNLOAD_CHUNKSIZE = 8192 # int
 
 UNIS_HOST = "unis.crest.iu.edu"          # hostname or ip
 UNIS_PORT = 8890                         # port as int
+CEPH_DEPOTS = {
+    "ceph://um-mon01.osris.org": {
+        "clustername": "osiris",
+        "config": "/etc/ceph/osiris.conf",
+        "pool": "dlt",
+        "crush_map": null
+    }
+}
+
 LoRS = {
     "duration": 24 * 30,
     "copies":   3,               # replication factor           int

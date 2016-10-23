@@ -154,18 +154,22 @@ def upload(filename, basename, timeouts = 1):
     result = '0'
     logger = history.GetLogger()
     directory = _getUnisDirectory(basename)
-            
+    
     try:
+        sess_kwargs = { 
+            "url": "http://dev.crest.iu.edu:8888",
+            "depots": settings.CEPH_DEPOTS, 
+            "bs": settings.LoRS["size"] }
         kwargs = {
-            "duration": settings.DURATION,
-            "filename": filename,
-            "chunk_size": settings.CHUNK_SIZE,
-            "depots": None,
-            "copies": settings.COPIES,
-            "timeout": None,
+            "duration": settings.LoRS["duration"],
+            "filepath": filename,
+            "copies": settings.LoRS["copies"],
+            "folder": directory
         }
-        session = Session("http://dev.crest.iu.edu:8888", settings.CEPH_DEPOTS)
-        session.upload(filename, folder=directory, copies=settings.LoRS["copies"])
+        logger.debug("Starting upload to DLT_CEPH...")
+        session = Session(**kwargs)
+        session.upload(**kwargs)
+        logger.debug("Upload to DLT_CEPH complete")
     except Exception as exp:
         logger.error("Unknown error in dlt upload - {exp}".format(exp = exp))
     
