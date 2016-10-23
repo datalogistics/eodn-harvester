@@ -86,7 +86,7 @@ CEPH_DEPOTS = {
         "clustername": "osiris",
         "config": "/etc/ceph/osiris.conf",
         "pool": "dlt",
-        "crush_map": null
+        "crush_map": None
     }
 }
 
