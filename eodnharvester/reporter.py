@@ -32,7 +32,7 @@ def runner(hour):
     logger = history.GetLogger()
     
     while True:
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now()
         if (now.hour == settings.REPORT_HOUR and not reported) or settings.FORCE_EMAIL:
             logger.debug("\033[94m{r}{f}\033[0m".format(r = "Creating report...", f = " FORCED" if settings.FORCE_EMAIL else ""))
             try:
@@ -59,7 +59,7 @@ def runner(hour):
         
 def write_report(report):
     logger = history.GetLogger()
-    now = datetime.datetime.utcnow()
+    now = datetime.datetime.now()
     last = now - datetime.timedelta(hours = 24)
     harvested_size = 0
     
