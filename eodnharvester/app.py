@@ -158,14 +158,6 @@ def upload(filename, basename, timeouts = 1):
     directory = _getUnisDirectory(basename)
     
     try:
-        logger.debug("Starting upload to DLT_CEPH...")
-        session = Session("http://dev.crest.iu.edu:8888", settings.CEPH_DEPOTS, bs=settings.LoRS["size"])
-        session.upload(filepath=filename, folder=directory, copies=settings.LoRS["copies"], duration=settings.LoRS["duration"])
-        logger.debug("Upload to DLT_CEPH complete")
-    except Exception as exp:
-        logger.error("Unknown error in dlt upload - {exp}".format(exp = exp))
-    
-    try:
         duration = "--duration={0}h".format(settings.LoRS["duration"])
         call = subprocess.Popen(['lors_upload', duration,
                                  '--none',
@@ -187,10 +179,19 @@ def upload(filename, basename, timeouts = 1):
                 logger.info(out.decode('utf-8'))
             if err:
                 logger.error(err.decode('utf-8'))
-                
+        if result == 0:
+            return result
     except Exception as exp:
         logger.error("Unknown error while calling lors_upload - {exp}".format(exp = exp))
-        
+    
+    try:
+        logger.debug("Starting upload to DLT_CEPH...")
+        session = Session("http://dev.crest.iu.edu:8888", settings.CEPH_DEPOTS, bs=settings.LoRS["size"])
+        session.upload(filepath=filename, folder=directory, copies=settings.LoRS["copies"], duration=settings.LoRS["duration"])
+        logger.debug("Upload to DLT_CEPH complete")
+    except Exception as exp:
+        logger.error("Unknown error in dlt upload - {exp}".format(exp = exp))
+    
     return result
     
     
