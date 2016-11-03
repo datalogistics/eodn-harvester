@@ -40,8 +40,10 @@ AUTH_VALUE = settings.AUTH_VALUE
 def productExists(product):
     logger = history.GetLogger()
     url = "{protocol}://{host}:{port}/exnodes?metadata.scene={scene}&metadata.productCode={code}".format(protocol = "https" if settings.USE_SSL else "http",
-                                                                                                         host  = settings.UNIS_HOST,
-                                                                                                         port  = settings.UNIS_PORT,
+                                                                                                         host = "dev.crest.iu.edu",
+                                                                                                         port = "8888",
+                                                                                                         #host  = settings.UNIS_HOST,
+                                                                                                         #port  = settings.UNIS_PORT,
                                                                                                          scene = product.scene,
                                                                                                          code  = product.productCode)
 
@@ -156,7 +158,7 @@ def upload(filename, basename, timeouts = 1):
     result = '0'
     logger = history.GetLogger()
     directory = _getUnisDirectory(basename)
-    
+    '''
     try:
         duration = "--duration={0}h".format(settings.LoRS["duration"])
         call = subprocess.Popen(['lors_upload', duration,
@@ -183,16 +185,17 @@ def upload(filename, basename, timeouts = 1):
             return result
     except Exception as exp:
         logger.error("Unknown error while calling lors_upload - {exp}".format(exp = exp))
-    
+    '''
     try:
         logger.debug("Starting upload to DLT_CEPH...")
         session = Session("http://dev.crest.iu.edu:8888", settings.CEPH_DEPOTS, bs=settings.LoRS["size"])
-        session.upload(filepath=filename, folder=directory, copies=settings.LoRS["copies"], duration=settings.LoRS["duration"])
+        session.upload(filepath=filename, folder=directory, copies=1, duration=settings.LoRS["duration"])
         logger.debug("Upload to DLT_CEPH complete")
     except Exception as exp:
         logger.error("Unknown error in dlt upload - {exp}".format(exp = exp))
+        return -1
     
-    return result
+    return 0
     
     
 def addMetadata(product):
