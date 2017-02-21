@@ -17,12 +17,13 @@ import time
 import requests
 import argparse
 import sys
+import logging
 import os
 import subprocess
 import concurrent.futures
 import json
 
-from libdlt import Session
+import libdlt
 
 import eodnharvester.history as history
 import eodnharvester.settings as settings
@@ -31,11 +32,14 @@ import eodnharvester.auth as auth
 from eodnharvester.search import Search
 from eodnharvester.product import Product
 from eodnharvester.conf import HarvesterConfigure
+from eodnharvester.schedule import DuplicateUploadSchedule
 
 
 
 AUTH_FIELD = settings.AUTH_FIELD
 AUTH_VALUE = settings.AUTH_VALUE
+session = None
+cephdepots = []
 
 def productExists(product):
     logger = history.GetLogger()
@@ -152,98 +156,34 @@ def downloadProduct(product):
     return output_file, log
     
 
-def upload(filename, basename, timeouts = 1):
+def upload(filename, product, timeouts = 1):
     output = "http://{unis_host}:{unis_port}/exnodes".format(unis_host = settings.UNIS_HOST,
                                                              unis_port = settings.UNIS_PORT)
     result = '0'
     logger = history.GetLogger()
-    directory = _getUnisDirectory(basename)
-    '''
-    try:
-        duration = "--duration={0}h".format(settings.LoRS["duration"])
-        call = subprocess.Popen(['lors_upload', duration,
-                                 '--none',
-                                 '-c', str(settings.LoRS["copies"]),
-                                 '-m', str(settings.LoRS["depots"]),
-                                 '-t', str(settings.LoRS["threads"]),
-                                 '-b', str(settings.LoRS["size"]),
-                                 '-T', "{t}m".format(t = 3 * timeouts),
-                                 '--depot-list',
-                                 '--xndrc={xndrc}'.format(xndrc = settings.LoRS["xndrc"]),
-                                 '-V', '1' if settings.VERBOSE else '0',
-                                 '-u', directory,
-                                 '-o', output, filename], stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-        
-        out, err = call.communicate()
-        result   = call.returncode
-        if settings.VERBOSE:
-            if out:
-                logger.info(out.decode('utf-8'))
-            if err:
-                logger.error(err.decode('utf-8'))
-        if result == 0:
-            return result
-    except Exception as exp:
-        logger.error("Unknown error while calling lors_upload - {exp}".format(exp = exp))
-    '''
+    directory = _getUnisDirectory(product.basename)
+    ex = None
+    
     try:
         logger.debug("Starting upload to DLT_CEPH...")
-        session = Session("http://dev.crest.iu.edu:8888", settings.CEPH_DEPOTS, bs=settings.LoRS["size"])
-        session.upload(filepath=filename, folder=directory, copies=1, duration=settings.LoRS["duration"])
+        ts, ex = session.upload(filepath=filename, folder=directory, copies=2, duration=settings.LoRS["duration"], schedule=DuplicateUploadSchedule(ceph=cephdepots))
         logger.debug("Upload to DLT_CEPH complete")
     except Exception as exp:
         logger.error("Unknown error in dlt upload - {exp}".format(exp = exp))
         return -1
     
-    return 0
-    
-    
-def addMetadata(product):
-    logger = history.GetLogger()
-    url = "{protocol}://{host}:{port}/exnodes?name={name}".format(protocol = "https" if settings.USE_SSL else "http",
-                                                                  host = settings.UNIS_HOST,
-                                                                  port = settings.UNIS_PORT,
-                                                                  name = product.filename)
     try:
-        response = requests.get(url, cert = (settings.SSL_OPTIONS["cert"], settings.SSL_OPTIONS["key"]))
-        response = response.json()
-        if isinstance(response, list):
-            response = response[0]
-        else:
-            raise IndexError("Object not in UNIS")
-        tmpId = response["id"]
-        
-        if "metadata" not in response:
-            response["metadata"] = {}
-
-        response["metadata"]["productCode"] = product.productCode
-        response["metadata"]["scene"] = product.scene
-        response[AUTH_FIELD] = AUTH_VALUE
-        
-        url = "{protocol}://{host}:{port}/exnodes/{uid}".format(protocol = "https" if settings.USE_SSL else "http",
-                                                                host = settings.UNIS_HOST,
-                                                                port = settings.UNIS_PORT,
-                                                                uid  = tmpId)
-        response = requests.put(url, data = json.dumps(response), cert = (settings.SSL_OPTIONS["cert"], settings.SSL_OPTIONS["key"]))
-    except requests.exceptions.RequestException as exp:
-        error = "Failed to connect to UNIS - {exp}".format(exp = exp)
-        logger.error(error)
-        return False
-    except ValueError as exp:
-        error = "Error while decoding unis json - {exp}".format(exp = exp)
-        logger.error(error)
-        return False
-    except IndexError as exp:
-        error = "Failed to add metadata - {exp}".format(exp = exp)
-        logger.error(error)
-        return False
-    except Exception as exp:
-        error = "Unknown error while contacting UNIS - {exp}".format(exp = exp)
-        logger.error(error)
-        return False
-        
-    return True
-
+        with session.annotate(ex) as f:
+            if not hasattr(f, "metadata"):
+                f.metadata = {}
+            f.metadata.productCode = product.productCode
+            f.metadata.scene = product.scene
+            setattr(f, AUTH_FIELD, AUTH_VALUE)
+        except Exception as exp:
+            error = "Failed to add metadata - {exp}".format(exp = exp)
+            logger.error(error)
+            return -1
+    return 0
 
 def createProduct(product, attempt = 0):
     logger = history.GetLogger()
@@ -261,13 +201,13 @@ def createProduct(product, attempt = 0):
         return None
     
     now = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
-    upload_result = upload(filename, product.basename, attempt)
+    upload_result = upload(filename, product, attempt)
     if upload_result == 0:
         log.write(product.filename, "uploaded", True)
     else:
         log.write(product.filename, "complete", False)
     
-    if upload_result == 0 and addMetadata(product):
+    if upload_result == 0:
         log.write(product.filename, "complete", True)
         log.write(product.filename, "eodn_live", now)
         vals = { "ts": now,
@@ -539,6 +479,7 @@ def config():
 def main():
     parser = argparse.ArgumentParser(description = "Harvest data for EODN")
     parser.add_argument('-c', '--configure', action = 'store_true', help = "Run in configuration mode")
+    parser.add_argument('-s', '--depots', help = "File path to ceph depot descriptions")
     parser.add_argument('-v', '--verbose', action = 'store_true', help = "Makes the output verbose")
     parser.add_argument('-D', '--debug', action = 'store_true', help = "Includes debugging messages in output")
     parser.add_argument('-d', '--daemon', action = 'store_true', help = "Indicates that the process should be run as a daemon")
@@ -546,16 +487,24 @@ def main():
     
     if not os.path.exists(settings.WORKSPACE):
         os.makedirs(settings.WORKSPACE)
-
+    
     if not os.path.exists("{ws}/log".format(ws = settings.WORKSPACE)):
         os.makedirs("{ws}/log".format(ws = settings.WORKSPACE))
     
     if args.verbose:
         settings.VERBOSE = True
     
+    if args.depots:
+        cephdepots = None
+        with open(args.depots) as f:
+            cephdepots = json.loads(f.read())
+        session = libdlt.Session("http://dev.crest.iu.edu:8888", None, bs=settions.LoRS["size"])
+    else:
+        session = libdlt.Session("http://dev.crest.iu.edu:8888", None, bs=settings.LoRS["size"])
+    
     if args.debug:
         settings.DEBUG = True
-
+    
     if args.configure:
         config()
     elif args.daemon:
