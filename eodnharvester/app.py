@@ -495,12 +495,9 @@ def main():
         settings.VERBOSE = True
     
     if args.depots:
-        cephdepots = None
-        with open(args.depots) as f:
-            cephdepots = json.loads(f.read())
-        session = libdlt.Session("http://dev.crest.iu.edu:8888", None, bs=settions.LoRS["size"])
-    else:
-        session = libdlt.Session("http://dev.crest.iu.edu:8888", None, bs=settings.LoRS["size"])
+        cephdepots = settings.CEPH_DEPOTS
+    
+    session = libdlt.Session("http://dev.crest.iu.edu:8888", None, bs=settings.LoRS["size"])
     
     if args.debug:
         settings.DEBUG = True
