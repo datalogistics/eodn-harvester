@@ -32,7 +32,7 @@ import eodnharvester.auth as auth
 from eodnharvester.search import Search
 from eodnharvester.product import Product
 from eodnharvester.conf import HarvesterConfigure
-from eodnharvester.schedule import DuplicateUploadSchedule
+from eodnharvester.schedule import AlternateDepotSchedule
 
 
 
@@ -166,23 +166,30 @@ def upload(filename, product, timeouts = 1):
     
     try:
         logger.debug("Starting upload to DLT_CEPH...")
-        ts, ex = session.upload(filepath=filename, folder=directory, copies=2, duration=settings.LoRS["duration"], schedule=DuplicateUploadSchedule(ceph=cephdepots))
+        ts, ibp_ex = session.upload(filepath=filename, folder=directory, copies=3, duration=settings.LoRS["duration"])
+        ts, ceph_ex = session.upload(filepath=filename, folder=directory, schedule=AlternateDepotSchedule(cephdepots))
         logger.debug("Upload to DLT_CEPH complete")
     except Exception as exp:
         logger.error("Unknown error in dlt upload - {exp}".format(exp = exp))
         return -1
     
     try:
-        with session.annotate(ex) as f:
+        with session.annotate(ibp_ex) as f:
             if not hasattr(f, "metadata"):
                 f.metadata = {}
             f.metadata.productCode = product.productCode
             f.metadata.scene = product.scene
             setattr(f, AUTH_FIELD, AUTH_VALUE)
-        except Exception as exp:
-            error = "Failed to add metadata - {exp}".format(exp = exp)
-            logger.error(error)
-            return -1
+        with session.annotate(ceph_ex) as f:
+            if not hasattr(f, "metadata"):
+                f.metadata = {}
+            f.metadata.productCode = product.productCode
+            f.metadata.scene = product.scene
+            setattr(f, AUTH_FIELD, AUTH_VALUE)
+    except Exception as exp:
+        error = "Failed to add metadata - {exp}".format(exp = exp)
+        logger.error(error)
+        return -1
     return 0
 
 def createProduct(product, attempt = 0):
@@ -429,7 +436,7 @@ def config():
         URlon = cinput("Upper right Longitude: ", "float")
         if not URlon:
             return None
-
+        
         sort = cinput("Sort order [ASC|DESC]: ", ["ASC", "DESC"])
         if not sort:
             return None
@@ -494,10 +501,14 @@ def main():
     if args.verbose:
         settings.VERBOSE = True
     
+    ibpdepots = None
     if args.depots:
-        cephdepots = settings.CEPH_DEPOTS
+        with open(args.depots) as f:
+            depots = json.load(f)
+        ibpdepots = depots["ibp"]
+        cephdepots = depots["ceph"]
     
-    session = libdlt.Session("http://dev.crest.iu.edu:8888", None, bs=settings.LoRS["size"])
+    session = libdlt.Session("http://dev.crest.iu.edu:8888", ibpdepots, bs=settings.LoRS["size"])
     
     if args.debug:
         settings.DEBUG = True
