@@ -39,15 +39,13 @@ from eodnharvester.schedule import AlternateDepotSchedule
 AUTH_FIELD = settings.AUTH_FIELD
 AUTH_VALUE = settings.AUTH_VALUE
 session = None
-cephdepots = []
+cephdepots = {}
 
 def productExists(product):
     logger = history.GetLogger()
     url = "{protocol}://{host}:{port}/exnodes?metadata.scene={scene}&metadata.productCode={code}".format(protocol = "https" if settings.USE_SSL else "http",
-                                                                                                         host = "dev.crest.iu.edu",
-                                                                                                         port = "8888",
-                                                                                                         #host  = settings.UNIS_HOST,
-                                                                                                         #port  = settings.UNIS_PORT,
+                                                                                                         host  = settings.UNIS_HOST,
+                                                                                                         port  = settings.UNIS_PORT,
                                                                                                          scene = product.scene,
                                                                                                          code  = product.productCode)
 
@@ -508,7 +506,9 @@ def main():
         ibpdepots = depots["ibp"]
         cephdepots = depots["ceph"]
     
-    session = libdlt.Session("http://dev.crest.iu.edu:8888", ibpdepots, bs=settings.LoRS["size"])
+    session = libdlt.Session("http{}://{}:{}".format("s" if settings.USE_SSL else "",
+                                                     settings.UNIS_HOST, settings.UNIS_PORT), 
+                             ibpdepots, bs=settings.LoRS["size"])
     
     if args.debug:
         settings.DEBUG = True
