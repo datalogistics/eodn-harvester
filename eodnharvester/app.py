@@ -17,6 +17,7 @@ import time
 import requests
 import argparse
 import sys
+import traceback
 import logging
 import os
 import subprocess
@@ -61,7 +62,7 @@ def productExists(product):
         logger.error(error)
         return False
     except Exception as exp:
-        error = "Unkown error while contacting UNIS - {exp}".format(exp = exp)
+        error = "Unknown error while contacting UNIS - {exp}".format(exp = exp)
         logger.error(error)
         return False
     
@@ -164,9 +165,12 @@ def upload(filename, product, timeouts = 1):
     
     try:
         logger.debug("Starting upload to DLT_CEPH...")
-        ts, ibp_ex = session.upload(filepath=filename, folder=directory, copies=3, duration=settings.LoRS["duration"])
-        ts, ceph_ex = session.upload(filepath=filename, folder=directory, schedule=AlternateDepotSchedule(cephdepots))
-        logger.debug("Upload to DLT_CEPH complete")
+        ts, filesize, ibp_ex = session.upload(filepath=filename, folder=directory, copies=3, duration=settings.LoRS["duration"])
+        logger.debug("Created - {}".format(ibp_ex.selfRef))
+        if cephdepots:
+            ts, filesize, ceph_ex = session.upload(filepath=filename, folder=directory, schedule=AlternateDepotSchedule(cephdepots))
+            logger.debug("Created - {}".format(ceph_ex.selfRef))
+            logger.debug("Upload to DLT_CEPH complete")
     except Exception as exp:
         logger.error("Unknown error in dlt upload - {exp}".format(exp = exp))
         return -1
@@ -178,12 +182,13 @@ def upload(filename, product, timeouts = 1):
             f.metadata.productCode = product.productCode
             f.metadata.scene = product.scene
             setattr(f, AUTH_FIELD, AUTH_VALUE)
-        with session.annotate(ceph_ex) as f:
-            if not hasattr(f, "metadata"):
-                f.metadata = {}
-            f.metadata.productCode = product.productCode
-            f.metadata.scene = product.scene
-            setattr(f, AUTH_FIELD, AUTH_VALUE)
+        if cephdepots:
+            with session.annotate(ceph_ex) as f:
+                if not hasattr(f, "metadata"):
+                    f.metadata = {}
+                f.metadata.productCode = product.productCode
+                f.metadata.scene = product.scene
+                setattr(f, AUTH_FIELD, AUTH_VALUE)
     except Exception as exp:
         error = "Failed to add metadata - {exp}".format(exp = exp)
         logger.error(error)
@@ -506,6 +511,7 @@ def main():
         ibpdepots = depots["ibp"]
         cephdepots = depots["ceph"]
     
+    global session
     session = libdlt.Session("http{}://{}:{}".format("s" if settings.USE_SSL else "",
                                                      settings.UNIS_HOST, settings.UNIS_PORT), 
                              ibpdepots, bs=settings.LoRS["size"])

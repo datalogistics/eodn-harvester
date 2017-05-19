@@ -25,7 +25,7 @@ DEBUG          = False                    # boolean
 THREADS        = 1                        # int
 MAX_RECONNECT  = 10                       # int
 HARVEST_WINDOW = {"minutes": 5 }         # timedelta obj
-WORKSPACE      = "/data"         # directory string
+WORKSPACE      = ".tmp"         # directory string
 
 
 
@@ -48,7 +48,7 @@ TIMEOUT   = 40                       # int seconds
 #                                #
 ##################################
 
-DATASET_NAME = "Landsat_8" # string
+DATASET_NAME = "LANDSAT_ETM_C1" # string
 LOWER_LEFT = {
     "latitude":    24.52,  # double
     "longitude": -124.59   # double
